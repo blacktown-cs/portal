@@ -4,9 +4,337 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CS Education Parent Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a year rail across the top, weekly topics as the main column, the child's results beside it. */
+:root{
+  --bg:#f3f5fa; --surface:#ffffff; --ink:#172447; --muted:#5a6685; --line:#d9dfec;
+  --accent:#1f4bc4; --accent-ink:#ffffff; --mark:#e09a00; --soft:#e8edf9; --bad:#b3261e;
+  --display:"Bricolage Grotesque","Figtree",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0f1526; --surface:#182037; --ink:#e9edf8; --muted:#9ba7c5; --line:#2b3654;
+    --accent:#8fb0ff; --accent-ink:#0f1526; --mark:#ffc247; --soft:#212c4a; --bad:#ff8a80; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0f1526; --surface:#182037; --ink:#e9edf8; --muted:#9ba7c5; --line:#2b3654;
+  --accent:#8fb0ff; --accent-ink:#0f1526; --mark:#ffc247; --soft:#212c4a; --bad:#ff8a80; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:1080px;margin:0 auto;padding:0 20px 56px}
+header.top{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:flex-end;justify-content:space-between;padding:28px 0 18px}
+.brand{font-family:var(--display);font-weight:700;font-size:1.7rem;line-height:1.1;margin:0;text-wrap:balance}
+.brand span{display:block;font-family:var(--body);font-weight:600;font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.meta{color:var(--muted);font-size:.9rem;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+select,input,button{font:inherit;color:inherit}
+select,input[type=text]{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+:focus-visible{outline:3px solid var(--mark);outline-offset:2px}
+.demo{background:var(--soft);border:1px dashed var(--accent);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:.92rem}
+.demo code{font-weight:700;letter-spacing:.04em}
+nav.years{display:flex;gap:6px;overflow-x:auto;padding:4px 0 14px}
+nav.years a{flex:0 0 auto;text-decoration:none;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-weight:600;font-size:.92rem}
+nav.years a.has{border-color:var(--accent)}
+nav.years a[aria-current="page"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+nav.years a.none{color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.grid{grid-template-columns:1fr}}
+h2{font-family:var(--display);font-size:1.25rem;margin:0 0 12px;text-wrap:balance}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px}
+.stack{display:flex;flex-direction:column;gap:14px}
+.week-head{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.week-head h3{margin:0;font-size:1.02rem;font-weight:700}
+.pill{background:var(--mark);color:#1b1400;border-radius:999px;font-size:.72rem;font-weight:700;padding:2px 9px;letter-spacing:.03em;text-transform:uppercase}
+.topic{display:grid;grid-template-columns:150px minmax(0,1fr);gap:4px 14px;padding:10px 0;border-top:1px solid var(--line)}
+.topic:first-of-type{border-top:0;padding-top:0}
+.topic:last-child{padding-bottom:0}
+@media (max-width:520px){.topic{grid-template-columns:1fr}}
+.subj{font-weight:700;font-size:.85rem;color:var(--accent)}
+.hw{color:var(--muted);font-size:.9rem;margin-top:2px}
+.hw b{font-weight:600;color:var(--ink)}
+.empty{color:var(--muted);margin:0}
+form.code{display:flex;flex-direction:column;gap:10px}
+form.code label{font-weight:600;font-size:.92rem}
+form.code input{font-size:1.1rem;letter-spacing:.12em;text-transform:uppercase;width:100%}
+.btn{background:var(--accent);color:var(--accent-ink);border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer}
+.btn[disabled]{opacity:.6;cursor:progress}
+.link{background:none;border:0;padding:0;color:var(--accent);text-decoration:underline;cursor:pointer;font-size:.9rem}
+.help{color:var(--muted);font-size:.88rem;margin:0}
+.err{color:var(--bad);font-size:.9rem;margin:0;font-weight:600}
+.child{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.child strong{font-size:1.08rem}
+.res{padding:14px 0;border-top:1px solid var(--line)}
+.res-top{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.res-title{font-weight:600}
+.res-sub{color:var(--muted);font-size:.85rem}
+.score{font-family:var(--display);font-weight:700;font-size:1.35rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.score small{font-family:var(--body);font-weight:500;font-size:.85rem;color:var(--muted)}
+.bar{position:relative;height:10px;border-radius:999px;background:var(--soft);margin:10px 0 6px}
+.bar i{position:absolute;left:0;top:0;bottom:0;border-radius:999px;background:var(--accent)}
+.bar b{position:absolute;top:-4px;bottom:-4px;width:3px;margin-left:-1px;border-radius:2px;background:var(--mark)}
+.cap{color:var(--muted);font-size:.85rem;font-variant-numeric:tabular-nums}
+.cap .k{display:inline-block;width:3px;height:11px;background:var(--mark);border-radius:2px;margin-right:5px;vertical-align:-1px}
+.notices{margin-bottom:22px;padding-top:6px;padding-bottom:6px}
+.notice{padding:12px 0;border-top:1px solid var(--line)}
+.notice:first-child{border-top:0}
+.n-head{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.n-head h3{margin:0;font-size:1rem;font-weight:700}
+.n-date{color:var(--muted);font-size:.85rem;margin-left:auto}
+.notice p{margin:6px 0 0;white-space:pre-line;max-width:70ch}
+.notices details{border-top:1px solid var(--line);padding:10px 0}
+.notices summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:.92rem}
+.gate{max-width:460px;margin:24px auto 0;padding:24px}
+.gate h2{margin-bottom:6px}
+.gate form{margin-top:14px}
+.who{display:flex;justify-content:space-between;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:20px;padding:12px 18px}
+.who strong{font-size:1.08rem}
+#results .res:first-child{border-top:0;padding-top:0}
+#results .res:last-child{padding-bottom:0}
+footer{margin-top:28px;color:var(--muted);font-size:.86rem}
+</style>
 </head>
-<body style="font-family:system-ui,sans-serif;max-width:560px;margin:80px auto;padding:0 20px;color:#172447">
-<h1>CS Education Blacktown Parent Portal</h1>
-<p>The portal is being set up. Please check back soon.</p>
+<body>
+<div class="wrap">
+  <header class="top">
+    <h1 class="brand"><span id="centre">CS Education Blacktown</span>Parent Portal</h1>
+    <div class="meta" id="meta" hidden><label for="term">Term</label><select id="term"></select><span id="updated"></span></div>
+  </header>
+  <div id="demo"></div>
+  <section class="card gate" id="gate" aria-labelledby="h-gate"></section>
+  <div id="open" hidden>
+    <div class="card who" id="who"></div>
+    <section id="notices" aria-label="Notices"></section>
+    <div class="grid">
+      <section aria-labelledby="h-topics">
+        <h2 id="h-topics">Weekly topics</h2>
+        <div class="stack" id="topics"></div>
+      </section>
+      <section aria-labelledby="h-results">
+        <h2 id="h-results">Mini test results</h2>
+        <div class="card" id="results"></div>
+      </section>
+    </div>
+  </div>
+  <footer id="foot"></footer>
+</div>
+<script>/* Shared logic for the office tool and the parent portal. No DOM access here. */
+const CS = (() => {
+  const ALPHA = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // 31 characters, no I L O 0 1
+  const YEARS = Array.from({ length: 12 }, (_, i) => 'Y' + (i + 1));
+  const SUBJECTS = ['Mathematics', 'English', 'Reading', 'Writing', 'Thinking Skills', 'Mathematical Reasoning', 'General Ability', 'Science'];
+  const ITER = 200000;
+  const MIN_FOR_AVERAGE = 3; // below this a class average would reveal another child's mark
+  const enc = new TextEncoder(), dec = new TextDecoder();
+
+  const b64 = u8 => { let s = ''; for (const b of u8) s += String.fromCharCode(b); return btoa(s); };
+  const b64d = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const hex = u8 => Array.from(u8, b => b.toString(16).padStart(2, '0')).join('');
+  const normCode = c => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const yearLabel = y => 'Year ' + String(y).replace(/^Y/i, '');
+
+  function newCode() {
+    let out = ''; const buf = new Uint8Array(1);
+    while (out.length < 10) { crypto.getRandomValues(buf); if (buf[0] < 248) out += ALPHA[buf[0] % 31]; }
+    return out.slice(0, 5) + '-' + out.slice(5);
+  }
+
+  async function derive(code, saltB64, iter) {
+    const km = await crypto.subtle.importKey('raw', enc.encode(normCode(code)), 'PBKDF2', false, ['deriveBits']);
+    const bits = new Uint8Array(await crypto.subtle.deriveBits(
+      { name: 'PBKDF2', salt: b64d(saltB64), iterations: iter, hash: 'SHA-256' }, km, 384));
+    const key = await crypto.subtle.importKey('raw', bits.slice(16, 48), 'AES-GCM', false, ['encrypt', 'decrypt']);
+    return { tag: hex(bits.slice(0, 16)), key };
+  }
+
+  async function seal(obj, code, saltB64, iter) {
+    const { tag, key } = await derive(code, saltB64, iter);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj))));
+    return { tag, iv: b64(iv), ct: b64(ct) };
+  }
+
+  /* Returns the child's record, or null when the code matches nothing. */
+  async function open(D, code) {
+    if (normCode(code).length < 6) return null;
+    const { tag, key } = await derive(code, D.salt, D.iter);
+    const b = D.blobs[tag];
+    if (!b) return null;
+    try {
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64d(b.iv) }, key, b64d(b.ct));
+      return JSON.parse(dec.decode(pt));
+    } catch (e) { return null; }
+  }
+
+  function testStats(test) {
+    const vals = Object.values(test.scores || {}).filter(v => typeof v === 'number' && !isNaN(v));
+    const n = vals.length;
+    if (!n) return { n: 0, avg: null, high: null };
+    return { n, avg: Math.round(vals.reduce((a, b) => a + b, 0) / n * 10) / 10, high: Math.max(...vals) };
+  }
+
+  function emptyState() {
+    return {
+      version: 1,
+      centre: { name: 'CS Education Blacktown', phone: '02 9621 7711', email: 'blacktown@cseducation.com.au', address: 'Level 1, 19 Campbell St, Blacktown NSW 2148' },
+      current: { yr: new Date().getFullYear(), t: 4 },
+      portalUrl: 'https://blacktown-cs.github.io/portal/',
+      mail: { url: '', key: '' }, lastPublished: '',
+      students: [], topics: [], tests: [], notices: []
+    };
+  }
+
+  /* Opens the topics and notices for the child's year, using the year key held inside the child's record. */
+  async function openYear(D, rec) {
+    const y = D.years && D.years[rec.year];
+    if (!y || !rec.yk) return { topics: [], notices: [] };
+    try {
+      const key = await crypto.subtle.importKey('raw', b64d(rec.yk), 'AES-GCM', false, ['decrypt']);
+      const pt = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64d(y.iv) }, key, b64d(y.ct));
+      return JSON.parse(dec.decode(pt));
+    } catch (e) { return { topics: [], notices: [] }; }
+  }
+
+  const isActive = s => s.active !== false;
+
+  /* Builds what the parent portal file carries. Nothing about students, topics or notices is left readable:
+     each year's topics and notices are locked with a fresh key, and that key sits inside the sealed record
+     of every enrolled student in that year. */
+  async function buildPortalData(state, onProgress) {
+    const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+    const blobs = {}, years = {}, yearKey = {};
+    const list = state.students.filter(s => normCode(s.code) && isActive(s));
+    for (const y of [...new Set(list.map(s => s.year))]) {
+      const raw = crypto.getRandomValues(new Uint8Array(32));
+      const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const content = {
+        topics: state.topics.filter(x => x.y === y).map(x => ({ yr: x.yr, t: x.t, w: x.w, subject: x.subject, topic: x.topic, hw: x.hw || '' })),
+        notices: (state.notices || []).filter(n => !n.years || !n.years.length || n.years.includes(y)).map(n => ({ date: n.date, title: n.title, body: n.body, years: n.years || [] }))
+      };
+      const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(content))));
+      years[y] = { iv: b64(iv), ct: b64(ct) }; yearKey[y] = b64(raw);
+    }
+    let done = 0;
+    for (const s of list) {
+      const results = [];
+      for (const t of state.tests) {
+        const score = (t.scores || {})[s.id];
+        if (typeof score !== 'number' || isNaN(score)) continue;
+        const st = testStats(t);
+        const show = st.n >= MIN_FOR_AVERAGE;
+        results.push({ yr: t.yr, t: t.t, w: t.w, subject: t.subject, title: t.title, date: t.date || '', score, max: t.max,
+          avg: show ? st.avg : null, high: show ? st.high : null, n: st.n });
+      }
+      const sealed = await seal({ name: s.name, year: s.year, cls: s.cls || '', yk: yearKey[s.year], results }, s.code, salt, ITER);
+      blobs[sealed.tag] = { iv: sealed.iv, ct: sealed.ct };
+      done++; if (onProgress) onProgress(done, list.length);
+    }
+    return { centre: state.centre, generated: new Date().toISOString(), current: state.current, salt, iter: ITER, blobs, years };
+  }
+
+  function fillTemplate(tpl, data) {
+    return tpl.split('/*__PORTAL_' + 'DATA__*/null').join(JSON.stringify(data).replace(/</g, '\\u003c'));
+  }
+
+  return { YEARS, SUBJECTS, MIN_FOR_AVERAGE, normCode, uid, yearLabel, newCode, open, openYear, isActive, testStats, emptyState, buildPortalData, fillTemplate };
+})();
+if (typeof module !== 'undefined') module.exports = CS;
+</script>
+<script>
+window.PORTAL_DATA = {"centre":{"name":"CS Education Blacktown","phone":"02 9621 7711","email":"blacktown@cseducation.com.au","address":"Level 1, 19 Campbell St, Blacktown NSW 2148"},"generated":"2026-11-13T05:37:02.080Z","current":{"yr":2026,"t":4},"salt":"muy792hYNfUY8ychBG+B4Q==","iter":200000,"blobs":{"bf17f1b1f668d54b9a81956da33d8537":{"iv":"NwrhAfqcz92a5TJh","ct":"+Y7xsFgSdXNwkEnxldkOkfkEyKH6BPs5V+j4rGo2YahSTO0dyoZXT8Flam8ONE/cOev624kdeq79SPJ5ZUfkWPu6boL3P1imobWHvMXRFTleC1xG0e8HzHED3T5nNh698OTwN1WgnDjCnwCKp1el/SQtJfQKYOUwiKQ169E/y/EMhtB+sjLtoR43psp/VTkNS8p18Xpt0XV5+4gJxz31mKH7TsZbAftTLFAUXNzo60eIcCyHto2dJsXAW4AaIWq6k0Ys1iw3woT0i3BjsMGMXmLY5gidVK9zEStcFnr7uDhKC+6MBg57lEFrjJdkbnjGEVs6I+c="}},"years":{"Y5":{"iv":"zdoWcsEJ6IIfK2nT","ct":"OvsEuYdUTr4YaJwGIZmPL8PqIP5QOfha3fvQ8v3jDgh3s2RO8xbS0WkoKtqZUYblHFjv3BOPjilIP67ZAMU71OHAYpsINY19sfssux3d0y2gSfzb0xnDo3J4jB/+cQPHDshuT8Ij4kYo+K5M9Jz6k2tyaCQn1aGUtpoJIYvIpxu08w3xU11WBOf+0puXXpDXkj1/aGapXSUROlmK6SM/a3hJywFWd+k1nL8JWnwZ8X8SWjMIBB11twCXRCGnHp/mrH51YhwjAfRV8ZB0OOAX/Mj8dfTYQA=="}}};
+(function(){
+  const D = window.PORTAL_DATA;
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  if (!D) { $('gate').innerHTML = '<h2 id="h-gate">The portal is being set up</h2><p class="empty">Please check back soon.</p>'; return; }
+
+  const KEY = 'cs_portal_code';
+  const remember = { get(){ try { return localStorage.getItem(KEY) || ''; } catch(e){ return ''; } },
+                     set(v){ try { v ? localStorage.setItem(KEY, v) : localStorage.removeItem(KEY); } catch(e){} } };
+  let child = null, content = { topics: [], notices: [] }, term = D.current.yr + '-' + D.current.t, busy = false, error = '';
+
+  const termKey = x => x.yr + '-' + x.t;
+  function terms(){
+    const set = new Set([D.current.yr + '-' + D.current.t]);
+    content.topics.forEach(x => set.add(termKey(x)));
+    child.results.forEach(x => set.add(termKey(x)));
+    return [...set].sort((a, b) => { const [ay, at] = a.split('-').map(Number), [by, bt] = b.split('-').map(Number); return by - ay || bt - at; });
+  }
+
+  function renderGate(){
+    $('gate').innerHTML = `<h2 id="h-gate">Enter your child's access code</h2>
+      <p class="help">Weekly topics, notices and mini test results are shown to enrolled families only.</p>
+      <form class="code" id="codeform" novalidate>
+        <label for="code">Access code</label>
+        <input type="text" id="code" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX" maxlength="14">
+        ${error ? `<p class="err" role="alert">${esc(error)}</p>` : ''}
+        <button class="btn" type="submit"${busy ? ' disabled' : ''}>${busy ? 'Checking…' : 'Open the portal'}</button>
+        <p class="help">The code is on the letter from the office. If you have lost it, call ${esc(D.centre.phone)}.</p></form>`;
+  }
+  function renderNotices(){
+    const list = [...content.notices].sort((a, b) => b.date.localeCompare(a.date));
+    if (!list.length) { $('notices').innerHTML = ''; return; }
+    const fresh = n => new Date(D.generated) - new Date(n.date) < 7 * 864e5;
+    const item = n => `<article class="notice"><div class="n-head"><h3>${esc(n.title)}</h3>${fresh(n) ? '<span class="pill">New</span>' : ''}
+      <span class="n-date">${new Date(n.date).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })} · ${n.years && n.years.length ? esc(n.years.map(CS.yearLabel).join(', ')) : 'All years'}</span></div><p>${esc(n.body)}</p></article>`;
+    $('notices').innerHTML = `<h2>Notices</h2><div class="card notices">${list.slice(0, 3).map(item).join('')}` +
+      (list.length > 3 ? `<details><summary>Earlier notices (${list.length - 3})</summary>${list.slice(3).map(item).join('')}</details>` : '') + '</div>';
+  }
+  function renderTopics(){
+    $('h-topics').textContent = 'Weekly topics, ' + CS.yearLabel(child.year);
+    const rows = content.topics.filter(x => termKey(x) === term);
+    if (!rows.length) { $('topics').innerHTML = `<div class="card"><p class="empty">No topics have been posted for ${esc(CS.yearLabel(child.year))} this term yet.</p></div>`; return; }
+    const weeks = [...new Set(rows.map(x => x.w))].sort((a, b) => b - a);
+    $('topics').innerHTML = weeks.map((w, i) => `<article class="card"><div class="week-head"><h3>Week ${esc(w)}</h3>${i === 0 ? '<span class="pill">Latest</span>' : ''}</div>` +
+      rows.filter(x => x.w === w).map(x => `<div class="topic"><div class="subj">${esc(x.subject)}</div><div>${esc(x.topic)}${x.hw ? `<div class="hw"><b>Homework:</b> ${esc(x.hw)}</div>` : ''}</div></div>`).join('') + '</article>').join('');
+  }
+  function renderResults(){
+    const list = child.results.filter(x => termKey(x) === term).sort((a, b) => b.w - a.w || a.subject.localeCompare(b.subject));
+    const pct = (v, max) => Math.max(0, Math.min(100, max ? v / max * 100 : 0));
+    $('results').innerHTML = list.length ? list.map(r => `<div class="res"><div class="res-top"><div><div class="res-title">${esc(r.title)}</div><div class="res-sub">${esc(r.subject)} · Week ${esc(r.w)}</div></div>
+          <div class="score">${esc(r.score)}<small> / ${esc(r.max)}</small></div></div>
+        <div class="bar" role="img" aria-label="${Math.round(pct(r.score, r.max))} percent"><i style="width:${pct(r.score, r.max)}%"></i>${r.avg != null ? `<b style="left:${pct(r.avg, r.max)}%"></b>` : ''}</div>
+        <div class="cap">${r.avg != null ? `<span class="k"></span>Class average ${esc(r.avg)} · Highest ${esc(r.high)} · ${esc(r.n)} students` : 'Class average is shown when three or more students sit the test'}</div></div>`).join('')
+      : '<p class="empty">No mini test results have been posted this term yet.</p>';
+  }
+  function render(){
+    $('centre').textContent = D.centre.name;
+    $('demo').innerHTML = D.demo ? `<div class="demo">Example data, all names are made up. To open the portal, enter the access code <code>${esc(D.demo.code)}</code>.</div>` : '';
+    $('foot').innerHTML = `${esc(D.centre.name)} · ${esc(D.centre.address)} · ${esc(D.centre.phone)} · ${esc(D.centre.email)}`;
+    $('gate').hidden = !!child; $('open').hidden = !child; $('meta').hidden = !child;
+    if (!child) { renderGate(); return; }
+    $('term').innerHTML = terms().map(k => { const [y, t] = k.split('-'); return `<option value="${k}"${k === term ? ' selected' : ''}>Term ${t}, ${y}</option>`; }).join('');
+    $('updated').textContent = 'Updated ' + new Date(D.generated).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+    $('who').innerHTML = `<div><strong>${esc(child.name)}</strong><span class="res-sub"> ${esc(CS.yearLabel(child.year))}${child.cls ? ' · ' + esc(child.cls) : ''}</span></div><button class="link" id="signout" type="button">Use a different code</button>`;
+    renderNotices(); renderTopics(); renderResults();
+  }
+
+  async function unlock(code, quiet){
+    busy = true; error = ''; if (!quiet) renderGate();
+    let rec = null;
+    try { rec = await CS.open(D, code); if (rec) content = await CS.openYear(D, rec); } catch (e) { rec = null; }
+    busy = false;
+    if (rec) { child = rec; remember.set(code); }
+    else if (quiet) remember.set('');
+    else error = 'That code did not open the portal. Check each letter and digit. Codes stop working when a student is no longer enrolled.';
+    render();
+    if (!rec && !quiet) { const i = $('code'); if (i) { i.value = code; i.focus(); } }
+  }
+
+  document.addEventListener('submit', e => { if (e.target.id === 'codeform') { e.preventDefault(); if (!busy) unlock($('code').value, false); } });
+  document.addEventListener('click', e => { if (e.target.id === 'signout') { child = null; content = { topics: [], notices: [] }; remember.set(''); render(); } });
+  $('term').addEventListener('change', e => { term = e.target.value; render(); });
+
+  render();
+  const saved = remember.get();
+  if (saved) unlock(saved, true);
+})();
+</script>
 </body>
 </html>
