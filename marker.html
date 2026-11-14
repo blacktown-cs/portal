@@ -2523,7 +2523,7 @@ const CS = (() => {
       blobs[sealed.tag] = { iv: sealed.iv, ct: sealed.ct };
       done++; if (onProgress) onProgress(done, list.length);
     }
-    return { centre: state.centre, base: (state.portalUrl || '').replace(/#.*$/, ''), generated: new Date().toISOString(), current: state.current, salt, iter: ITER, blobs, years };
+    return { centre: state.centre, visit: state.visit && state.visit.on !== false && state.visit.id ? { id: state.visit.id, entry: state.visit.entry } : undefined, base: (state.portalUrl || '').replace(/#.*$/, ''), generated: new Date().toISOString(), current: state.current, salt, iter: ITER, blobs, years };
   }
 
   /* Brings data saved by an earlier version up to date: topics and tests are the same every year,
