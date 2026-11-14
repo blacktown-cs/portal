@@ -2452,7 +2452,7 @@ const CS = (() => {
       try {
         const key = await crypto.subtle.importKey('raw', b64d(g.yk), 'AES-GCM', false, ['decrypt']);
         const c = JSON.parse(dec.decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64d(y.iv) }, key, b64d(y.ct))));
-        if (g.g === rec.year) out.topics = c.topics || [];
+        if (g.g === rec.year) out.topics = rec.topics || c.topics || [];
         for (const n of c.notices || []) { const k = n.date + '|' + n.title; if (!seen[k]) { seen[k] = 1; out.notices.push(n); } }
       } catch (e) {}
     }
@@ -2465,6 +2465,12 @@ const CS = (() => {
 
   /* Which weeks parents see: every week (w 0), weeks 1 to w, or week w alone (only). */
   const weekShown = (cur, w) => !cur.w || (cur.only ? w === cur.w : w <= cur.w);
+  /* The week setting at the top right is the default. A year can have its own, and a single student can have
+     their own on top of that. Stored as text: '' same as the level above, '0' all weeks, '3' up to week 3, 'o3' week 3 only. */
+  const parseRule = v => { const m = /^(o?)(\d{1,2})$/.exec(String(v == null ? '' : v)); return m ? { w: +m[2], only: !!m[1] && +m[2] > 0 } : null; };
+  const ruleForYear = (state, y) => Object.assign({ yr: state.current.yr, t: state.current.t, w: state.current.w || 0, only: !!state.current.only }, parseRule(((state.weekRules || {}).years || {})[y]) || {});
+  const ownRule = (state, s) => parseRule(((state.weekRules || {}).students || {})[s.id]);
+  const ruleFor = (state, s) => Object.assign(ruleForYear(state, s.year), ownRule(state, s) || {});
   const weekLabel = cur => !cur.w ? 'all weeks' : cur.only ? 'Week ' + cur.w + ' only' : 'up to Week ' + cur.w;
   /* Homework checks can be entered on several devices. Two copies are merged check by check: the one changed last wins. */
   const hwKey = h => [h.sid, h.yr, h.t, h.w].join('|');
@@ -2482,13 +2488,14 @@ const CS = (() => {
   async function buildPortalData(state, onProgress) {
     const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
     const blobs = {}, years = {}, yearKey = {}, cur = state.current;
+    const topicOut = x => ({ yr: cur.yr, t: x.t, w: x.w, subject: x.subject, topic: x.topic, hw: x.hw || '' });
     const list = state.students.filter(s => normCode(s.code) && isActive(s));
     for (const y of [...new Set(list.flatMap(groupsOf))]) {
       const raw = crypto.getRandomValues(new Uint8Array(32));
       const key = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt']);
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const content = {
-        topics: isTrial(y) ? [] : state.topics.filter(x => x.y === y && x.t === cur.t && weekShown(cur, x.w)).map(x => ({ yr: cur.yr, t: x.t, w: x.w, subject: x.subject, topic: x.topic, hw: x.hw || '' })),
+        topics: isTrial(y) ? [] : state.topics.filter(x => x.y === y && x.t === cur.t && weekShown(ruleForYear(state, y), x.w)).map(topicOut),
         notices: (state.notices || []).filter(n => !n.years || !n.years.length || n.years.includes(y)).map(n => ({ date: n.date, title: n.title, body: n.body, years: n.years || [] }))
       };
       const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(content))));
@@ -2496,9 +2503,9 @@ const CS = (() => {
     }
     let done = 0;
     for (const s of list) {
-      const results = [];
+      const results = [], mine = ruleFor(state, s), own = !isTrial(s.year) && ownRule(state, s);
       /* parents see the current term only: earlier terms and years stay in the office tool */
-      for (const t of isTrial(s.year) ? [] : state.tests.filter(x => x.t === cur.t && weekShown(cur, x.w))) for (const yr of [String(cur.yr)]) {
+      for (const t of isTrial(s.year) ? [] : state.tests.filter(x => x.t === cur.t && weekShown(mine, x.w))) for (const yr of [String(cur.yr)]) {
         const score = ((t.scoresByYear || {})[yr] || {})[s.id];
         if (typeof score !== 'number' || isNaN(score)) continue;
         const st = testStats(t, yr);
@@ -2507,7 +2514,9 @@ const CS = (() => {
           avg: show ? st.avg : null, high: show ? st.high : null, n: st.n });
       }
       const sealed = await seal({ name: s.name, year: s.year, extra: groupsOf(s)[1] || '', cls: s.cls || '', groups: groupsOf(s).map(g => ({ g, yk: yearKey[g] })), results,
-        homework: isTrial(s.year) ? [] : (state.homework || []).filter(h => h.sid === s.id && h.yr === cur.yr && h.t === cur.t && weekShown(cur, h.w) && (h.s || h.c)).map(h => ({ w: h.w, s: h.s || '', c: h.c || '' })),
+        /* a student with their own week setting carries their own topic list, which the portal shows in place of the year's shared list */
+        topics: own ? state.topics.filter(x => x.y === s.year && x.t === cur.t && weekShown(mine, x.w)).map(topicOut) : undefined,
+        homework: isTrial(s.year) ? [] : (state.homework || []).filter(h => h.sid === s.id && h.yr === cur.yr && h.t === cur.t && weekShown(mine, h.w) && (h.s || h.c)).map(h => ({ w: h.w, s: h.s || '', c: h.c || '' })),
         reports: (state.reports || []).filter(r => r.sid === s.id).map(r => ({ yr: r.yr, t: r.t, file: r.file, key: r.key, size: r.size, inline: r.inline })) }, s.code, salt, ITER);
       blobs[sealed.tag] = { iv: sealed.iv, ct: sealed.ct };
       done++; if (onProgress) onProgress(done, list.length);
@@ -2538,7 +2547,7 @@ const CS = (() => {
     return tpl.split('/*__PORTAL_' + 'DATA__*/null').join(JSON.stringify(data).replace(/</g, '\\u003c'));
   }
 
-  return { mergeHw, weekShown, weekLabel, HW, sealFile, openFile, b64, b64d, YEARS, TRIAL, isTrial, groupsOf, inGroup, SUBJECTS, MIN_FOR_AVERAGE, normCode, uid, yearLabel, newCode, open, openYear, isActive, testStats, emptyState, buildPortalData, fillTemplate, migrate };
+  return { parseRule, ruleForYear, ruleFor, ownRule, mergeHw, weekShown, weekLabel, HW, sealFile, openFile, b64, b64d, YEARS, TRIAL, isTrial, groupsOf, inGroup, SUBJECTS, MIN_FOR_AVERAGE, normCode, uid, yearLabel, newCode, open, openYear, isActive, testStats, emptyState, buildPortalData, fillTemplate, migrate };
 })();
 if (typeof module !== 'undefined') module.exports = CS;
 </script>
