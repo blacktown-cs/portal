@@ -2437,7 +2437,7 @@ const CS = (() => {
       current: { yr: new Date().getFullYear(), t: 4, w: 0 }, // w 0 = show every week of the term
       portalUrl: 'https://blacktown-cs.github.io/portal/',
       mail: { url: '', key: '' }, lastPublished: '',
-      students: [], topics: [], tests: [], notices: [], reports: [], homework: []
+      students: [], topics: [], tests: [], notices: [], reports: [], homework: [], scans: []
     };
   }
 
@@ -2506,12 +2506,14 @@ const CS = (() => {
       const results = [], mine = ruleFor(state, s), own = !isTrial(s.year) && ownRule(state, s);
       /* parents see the current term only: earlier terms and years stay in the office tool */
       for (const t of isTrial(s.year) ? [] : state.tests.filter(x => x.t === cur.t && weekShown(mine, x.w))) for (const yr of [String(cur.yr)]) {
-        const score = ((t.scoresByYear || {})[yr] || {})[s.id];
-        if (typeof score !== 'number' || isNaN(score)) continue;
+        const raw = ((t.scoresByYear || {})[yr] || {})[s.id], has = typeof raw === 'number' && !isNaN(raw), score = has ? raw : null;
+        const sn = (state.scans || []).find(x => x.sid === s.id && x.tid === t.id && String(x.yr) === yr);
+        if (!has && !sn) continue;
         const st = testStats(t, yr);
         const show = st.n >= MIN_FOR_AVERAGE;
         results.push({ yr: +yr, t: t.t, w: t.w, subject: t.subject, title: t.title, date: t.date || '', score, max: t.max,
-          avg: show ? st.avg : null, high: show ? st.high : null, n: st.n });
+          avg: show ? st.avg : null, high: show ? st.high : null, n: st.n,
+          scan: sn ? { name: sn.name, type: sn.type || '', file: sn.file, key: sn.key, size: sn.size, inline: sn.inline } : undefined });
       }
       const sealed = await seal({ name: s.name, year: s.year, extra: groupsOf(s)[1] || '', cls: s.cls || '', groups: groupsOf(s).map(g => ({ g, yk: yearKey[g] })), results,
         /* a student with their own week setting carries their own topic list, which the portal shows in place of the year's shared list */
