@@ -2496,7 +2496,7 @@ const CS = (() => {
       const iv = crypto.getRandomValues(new Uint8Array(12));
       const content = {
         topics: isTrial(y) ? [] : state.topics.filter(x => x.y === y && x.t === cur.t && weekShown(ruleForYear(state, y), x.w)).map(topicOut),
-        notices: (state.notices || []).filter(n => !n.years || !n.years.length || n.years.includes(y)).map(n => ({ date: n.date, title: n.title, body: n.body, years: n.years || [] }))
+        notices: (state.notices || []).filter(n => !n.years || !n.years.length || n.years.includes(y)).map(n => ({ date: n.date, title: n.title, body: n.body, years: n.years || [], files: (n.files || []).map(f => ({ name: f.name, type: f.type || '', file: f.file, key: f.key, size: f.size, inline: f.inline })) }))
       };
       const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(content))));
       years[y] = { iv: b64(iv), ct: b64(ct) }; yearKey[y] = b64(raw);
