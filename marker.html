@@ -2646,7 +2646,7 @@ if (typeof module !== 'undefined') module.exports = CS;
   }
   const checked = () => { const h = get('@' + ui.year, ''); return !!h && h.s === 'checked'; };
   const flagged = sid => CS.HW_SUBJECTS.some(sub => { const h = get(sid, sub); return h && (h.s === 'no' || h.s === 'part'); });
-  const CHIP = { '': 'OK', no: 'Not done', part: 'Partly', done: 'Done' };
+  const CHIP = { '': '—', no: 'Not done', part: 'Partly', done: 'Done' };
   function years(){ return CS.YEARS.filter(y => roster.students.some(s => s.year === y)); }
   function render(){
     const v = $('view');
@@ -2666,7 +2666,7 @@ if (typeof module !== 'undefined') module.exports = CS;
       <div class="card"><div class="bar"><label class="fld">Week<select id="week">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}"${i + 1 === ui.week ? ' selected' : ''}>Week ${i + 1}</option>`).join('')}</select></label>
           <label class="fld grow">Your name (shown to the office)<input id="me" value="${esc(store.get(NAME))}" autocomplete="name"></label></div>
         <p class="note"><b>Term ${esc(cur().t)}, ${esc(cur().yr)} · ${esc(CS.yearLabel(ui.year))} · Week ${ui.week}.</b> ${set.length ? 'Homework set: ' + set.map(x => esc(x.subject) + ': ' + esc(x.hw)).join(' · ') : ''}</p>
-        <p class="note">Mark only what was <b>not</b> done. Tap a subject once for <b>Not done</b>, again for <b>Partly</b>, again to clear. Students you leave alone count as completed.</p>
+        <p class="note">Mark only what was <b>not</b> done. Tap a subject once for <b>Not done</b>, again for <b>Partly</b>, again for <b>Done</b>, once more to clear. While the box below is ticked, students left blank show parents as completed.</p>
         <label class="chk"><input type="checkbox" id="chk"${checked() ? ' checked' : ''}> <b>Week ${ui.week} homework has been checked</b></label>
         <p class="note" id="count">${bad} of ${list.length} students have homework not completed. Parents see it after the office publishes.</p></div>` +
       (list.length ? list.map(s => { const memo = get(s.id, '') || {}; return `<div class="card stu ${flagged(s.id) ? 'flag' : ''}" data-sid="${s.id}"><h3>${esc(s.name)}${s.cls ? ` <span class="by">${esc(s.cls)}</span>` : ''}</h3>
@@ -2684,7 +2684,7 @@ if (typeof module !== 'undefined') module.exports = CS;
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;
     if (a === 'year') { ui.year = b.dataset.y; render(); }
-    else if (a === 'chip') { const sid = b.closest('[data-sid]').dataset.sid, c = (get(sid, b.dataset.sub) || {}).s || '', next = c === '' || c === 'done' ? 'no' : c === 'no' ? 'part' : ''; put(sid, b.dataset.sub, { s: next }); if (next && !checked()) put('@' + ui.year, '', { s: 'checked' }); render(); }
+    else if (a === 'chip') { const sid = b.closest('[data-sid]').dataset.sid, c = (get(sid, b.dataset.sub) || {}).s || '', next = c === '' ? 'no' : c === 'no' ? 'part' : c === 'part' ? 'done' : ''; put(sid, b.dataset.sub, { s: next }); if (next && !checked()) put('@' + ui.year, '', { s: 'checked' }); render(); }
     else if (a === 'qr') { showQr = !showQr; render(); }
     else if (a === 'retry') { problem = ''; roster = null; render(); load(); }
     else if (a === 'forget') { if (armed.get(b)) { store.set(TOKEN, ''); roster = null; entries = []; sha = null; loaded = false; problem = ''; showQr = false; render(); } else { armed.set(b, true); b.textContent = 'Tap again to remove the key'; setTimeout(() => armed.delete(b), 3000); } }
