@@ -39,14 +39,15 @@ select,input,textarea{background:var(--surface);border:1px solid #bdb5b6;border-
 .note{color:var(--muted);font-size:.9rem;margin:8px 0 0}
 .err{color:var(--bad);font-weight:700;border-left:3px solid var(--bad);padding-left:9px;margin:8px 0 0}
 .stu{border-left:4px solid var(--line)}
-.stu.done{border-left-color:var(--good)}.stu.part{border-left:6px solid var(--part);background:#fff1d6}.stu.no{border-left:6px solid var(--red);background:#fde3e3}
+.stu.flag{border-left:6px solid var(--red);background:#fff8f7}
 .stu h3{margin:0 0 8px;font-size:1.02rem}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
-.seg button{background:var(--surface);border:1px solid #bdb5b6;border-radius:4px;padding:10px 4px;font-weight:600;font-size:.92rem;cursor:pointer;min-height:44px}
-.seg button[aria-pressed=true]{color:#fff}
-.seg button[data-s=done][aria-pressed=true]{background:var(--good);border-color:var(--good)}
-.seg button[data-s=part][aria-pressed=true]{background:var(--part);border-color:var(--part)}
-.seg button[data-s=no][aria-pressed=true]{background:var(--red-deep);border-color:var(--red-deep)}
+.seg{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px}
+.seg button{background:var(--surface);border:1px solid #bdb5b6;border-radius:4px;padding:8px 6px;cursor:pointer;min-height:52px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted)}
+.seg button span{font-size:.82rem;font-weight:600;color:var(--ink)}.seg button b{font-size:.88rem;font-weight:600}
+.seg button.no{background:var(--red-deep);border-color:var(--red-deep);color:#fff}.seg button.part{background:var(--part);border-color:var(--part);color:#fff}
+.seg button.no span,.seg button.part span{color:#fff}.seg button.no b,.seg button.part b{font-weight:800}
+.seg button.done{background:#e4f4ea;border-color:#9fd1b3;color:#14633a}
+.chk{display:flex;gap:8px;align-items:center;margin-top:8px;cursor:pointer}.chk input{width:auto;flex:0 0 auto}
 .by{color:var(--muted);font-size:.8rem;margin-top:4px}
 .qr{max-width:240px;margin:10px auto}.qr svg{width:100%;height:auto;display:block}
 </style>
@@ -2482,6 +2483,16 @@ const CS = (() => {
     for (const h of [...(a || []), ...(b || [])]) { const k = hwKey(h); if (!m[k] || (h.at || 0) > (m[k].at || 0)) m[k] = h; }
     return Object.keys(m).sort().map(k => m[k]);
   }
+  /* Homework is marked by exception: the marker flags only the subjects that were not done (or partly done) and may
+     leave a note. A week marked as checked for the class (an entry for '@' + year) tells every other family
+     that all homework was completed. */
+  function hwFor(state, s, rule) {
+    const cur = state.current, all = (state.homework || []).filter(h => h.yr === cur.yr && h.t === cur.t && weekShown(rule, h.w));
+    const out = all.filter(h => h.sid === s.id && (h.s || h.c)).map(h => ({ w: h.w, sub: h.sub || '', s: h.s || '', c: h.c || '' }));
+    for (const k of all.filter(h => h.sid === '@' + s.year && h.s === 'checked'))
+      if (!out.some(h => h.w === k.w && h.s)) out.push({ w: k.w, sub: '*', s: 'done', c: '' });
+    return out;
+  }
   const isActive = s => s.active !== false;
   const HW = { done: 'Completed', part: 'Partly completed', no: 'Not completed' };
 
@@ -2524,7 +2535,7 @@ const CS = (() => {
         notices: (state.notices || []).filter(n => n.personal && (n.sids || []).includes(s.id)).map(n => Object.assign(noticeOut(n), { personal: true, years: [] })),
         /* a student with their own week setting carries their own topic list, which the portal shows in place of the year's shared list */
         topics: own ? state.topics.filter(x => x.y === s.year && x.t === cur.t && weekShown(mine, x.w)).map(topicOut) : undefined,
-        homework: isTrial(s.year) ? [] : (state.homework || []).filter(h => h.sid === s.id && h.yr === cur.yr && h.t === cur.t && weekShown(mine, h.w) && (h.s || h.c)).map(h => ({ w: h.w, sub: h.sub || '', s: h.s || '', c: h.c || '' })),
+        homework: isTrial(s.year) ? [] : hwFor(state, s, mine),
         reports: (state.reports || []).filter(r => r.sid === s.id).map(r => ({ yr: r.yr, t: r.t, file: r.file, key: r.key, size: r.size, inline: r.inline })) }, s.code, salt, ITER);
       blobs[sealed.tag] = { iv: sealed.iv, ct: sealed.ct };
       done++; if (onProgress) onProgress(done, list.length);
@@ -2555,7 +2566,7 @@ const CS = (() => {
     return tpl.split('/*__PORTAL_' + 'DATA__*/null').join(JSON.stringify(data).replace(/</g, '\\u003c'));
   }
 
-  return { HW_SUBJECTS, parseRule, ruleForYear, ruleFor, ownRule, mergeHw, weekShown, weekLabel, HW, sealFile, openFile, b64, b64d, YEARS, TRIAL, isTrial, groupsOf, inGroup, SUBJECTS, MIN_FOR_AVERAGE, normCode, uid, yearLabel, newCode, open, openYear, isActive, testStats, emptyState, buildPortalData, fillTemplate, migrate };
+  return { hwFor, HW_SUBJECTS, parseRule, ruleForYear, ruleFor, ownRule, mergeHw, weekShown, weekLabel, HW, sealFile, openFile, b64, b64d, YEARS, TRIAL, isTrial, groupsOf, inGroup, SUBJECTS, MIN_FOR_AVERAGE, normCode, uid, yearLabel, newCode, open, openYear, isActive, testStats, emptyState, buildPortalData, fillTemplate, migrate };
 })();
 if (typeof module !== 'undefined') module.exports = CS;
 </script>
@@ -2568,7 +2579,7 @@ if (typeof module !== 'undefined') module.exports = CS;
   const TOKEN = 'cs_marker_token', NAME = 'cs_marker_name', LAST = 'cs_marker_last';
   let roster = null, entries = [], sha = null, dirty = false, busy = false, timer = null, problem = '', showQr = false, loaded = false;
   const last = (() => { try { return JSON.parse(store.get(LAST)) || {}; } catch(e){ return {}; } })();
-  const ui = { year: last.year || '', week: last.week || 0, sub: last.sub == null ? CS.HW_SUBJECTS[0] : last.sub };
+  const ui = { year: last.year || '', week: last.week || 0 };
 
   /* A setup link carries the marker key after the # sign. Keep it on this device and take it out of the address bar. */
   const linked = /^#k=(.+)$/.exec(location.hash);
@@ -2627,13 +2638,15 @@ if (typeof module !== 'undefined') module.exports = CS;
   }
 
   const cur = () => roster.current;
-  const subs = () => CS.HW_SUBJECTS.concat(entries.some(h => !h.sub && h.yr === cur().yr && h.t === cur().t && (h.s || h.c)) ? [''] : []);
-  const find = sid => entries.find(h => h.sid === sid && h.yr === cur().yr && h.t === cur().t && h.w === ui.week && (h.sub || '') === ui.sub);
-  function setCheck(sid, patch){
-    let h = find(sid);
-    if (!h) { h = { sid, yr: cur().yr, t: cur().t, w: ui.week, sub: ui.sub, s: '', c: '' }; entries.push(h); }
+  const get = (sid, sub) => entries.find(h => h.sid === sid && h.yr === cur().yr && h.t === cur().t && h.w === ui.week && (h.sub || '') === sub);
+  function put(sid, sub, patch){
+    let h = get(sid, sub);
+    if (!h) { h = { sid, yr: cur().yr, t: cur().t, w: ui.week, sub, s: '', c: '' }; entries.push(h); }
     Object.assign(h, patch, { at: Date.now(), by: store.get(NAME) }); schedule();
   }
+  const checked = () => { const h = get('@' + ui.year, ''); return !!h && h.s === 'checked'; };
+  const flagged = sid => CS.HW_SUBJECTS.some(sub => { const h = get(sid, sub); return h && (h.s === 'no' || h.s === 'part'); });
+  const CHIP = { '': 'OK', no: 'Not done', part: 'Partly', done: 'Done' };
   function years(){ return CS.YEARS.filter(y => roster.students.some(s => s.year === y)); }
   function render(){
     const v = $('view');
@@ -2645,21 +2658,21 @@ if (typeof module !== 'undefined') module.exports = CS;
     if (!roster) { v.innerHTML = '<div class="card"><p class="note" style="margin:0">Loading the class lists…</p></div>'; return; }
     const ys = years(); if (!ys.includes(ui.year)) ui.year = ys[0] || '';
     if (!ui.week) ui.week = cur().w || 1;
-    if (!subs().includes(ui.sub)) ui.sub = CS.HW_SUBJECTS[0];
-    store.set(LAST, JSON.stringify({ year: ui.year, week: ui.week, sub: ui.sub }));
+    store.set(LAST, JSON.stringify({ year: ui.year, week: ui.week }));
     const list = roster.students.filter(s => s.year === ui.year).sort((a, b) => a.name.localeCompare(b.name));
     const set = (roster.hw || []).filter(x => x.y === ui.year && x.w === ui.week);
-    const done = list.filter(s => { const h = find(s.id); return h && (h.s || h.c); }).length;
+    const bad = list.filter(s => flagged(s.id)).length;
     v.innerHTML = `<div class="years" role="group" aria-label="Year">${ys.map(y => `<button type="button" data-act="year" data-y="${y}" aria-pressed="${y === ui.year}">${esc(CS.yearLabel(y))}</button>`).join('')}</div>
-      <div class="years" role="group" aria-label="Subject">${subs().map(x => `<button type="button" data-act="sub" data-sub="${esc(x)}" aria-pressed="${x === ui.sub}">${esc(x || 'General')}</button>`).join('')}</div>
       <div class="card"><div class="bar"><label class="fld">Week<select id="week">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}"${i + 1 === ui.week ? ' selected' : ''}>Week ${i + 1}</option>`).join('')}</select></label>
           <label class="fld grow">Your name (shown to the office)<input id="me" value="${esc(store.get(NAME))}" autocomplete="name"></label></div>
-        <p class="note"><b>Term ${esc(cur().t)}, ${esc(cur().yr)} · ${esc(CS.yearLabel(ui.year))} · ${esc(ui.sub || 'General')} · Week ${ui.week}.</b> ${set.length ? 'Homework set: ' + set.map(x => esc(x.subject) + ': ' + esc(x.hw)).join(' · ') : 'No homework is listed for this week.'}</p>
-        <p class="note" id="count">${done} of ${list.length} students checked. Parents see the check and comment after the office publishes.</p></div>` +
-      (list.length ? list.map(s => { const h = find(s.id) || {}; return `<div class="card stu ${esc(h.s || '')}" data-sid="${s.id}"><h3>${esc(s.name)}${s.cls ? ` <span class="by">${esc(s.cls)}</span>` : ''}</h3>
-        <div class="seg" role="group" aria-label="Homework for ${esc(s.name)}">${Object.keys(CS.HW).map(k => `<button type="button" data-act="s" data-s="${k}" aria-pressed="${h.s === k}">${CS.HW[k]}</button>`).join('')}</div>
-        <input data-c="1" value="${esc(h.c || '')}" maxlength="400" placeholder="Comment for the parent (optional)" aria-label="Comment for ${esc(s.name)}">
-        ${h.by ? `<div class="by">Last changed by ${esc(h.by)}</div>` : ''}</div>`; }).join('') : '<div class="card"><p class="note" style="margin:0">No students in this year.</p></div>') +
+        <p class="note"><b>Term ${esc(cur().t)}, ${esc(cur().yr)} · ${esc(CS.yearLabel(ui.year))} · Week ${ui.week}.</b> ${set.length ? 'Homework set: ' + set.map(x => esc(x.subject) + ': ' + esc(x.hw)).join(' · ') : ''}</p>
+        <p class="note">Mark only what was <b>not</b> done. Tap a subject once for <b>Not done</b>, again for <b>Partly</b>, again to clear. Students you leave alone count as completed.</p>
+        <label class="chk"><input type="checkbox" id="chk"${checked() ? ' checked' : ''}> <b>Week ${ui.week} homework has been checked</b></label>
+        <p class="note" id="count">${bad} of ${list.length} students have homework not completed. Parents see it after the office publishes.</p></div>` +
+      (list.length ? list.map(s => { const memo = get(s.id, '') || {}; return `<div class="card stu ${flagged(s.id) ? 'flag' : ''}" data-sid="${s.id}"><h3>${esc(s.name)}${s.cls ? ` <span class="by">${esc(s.cls)}</span>` : ''}</h3>
+        <div class="seg" role="group" aria-label="Homework for ${esc(s.name)}">${CS.HW_SUBJECTS.map(sub => { const st = (get(s.id, sub) || {}).s || ''; return `<button type="button" data-act="chip" data-sub="${esc(sub)}" class="${st}"><span>${esc(sub)}</span><b>${CHIP[st]}</b></button>`; }).join('')}</div>
+        <input data-c="1" value="${esc(memo.c || '')}" maxlength="400" placeholder="Note for the parent (optional)" aria-label="Note for ${esc(s.name)}">
+        ${memo.by && memo.c ? `<div class="by">Note by ${esc(memo.by)}</div>` : ''}</div>`; }).join('') : '<div class="card"><p class="note" style="margin:0">No students in this year.</p></div>') +
       `<div class="card"><button class="link" type="button" data-act="qr">${showQr ? 'Hide the setup code' : 'Set up another device'}</button>
         ${showQr ? `<div class="qr">${qr(location.origin + location.pathname + '#k=' + encodeURIComponent(store.get(TOKEN)))}</div><p class="note">Scan this with the camera of the other phone or tablet. Show it to markers only: anyone who scans it can enter homework checks.</p>` : ''}
         <div style="margin-top:10px"><button class="link" type="button" data-act="forget">Remove the key from this device</button></div></div>`;
@@ -2671,8 +2684,7 @@ if (typeof module !== 'undefined') module.exports = CS;
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act;
     if (a === 'year') { ui.year = b.dataset.y; render(); }
-    else if (a === 'sub') { ui.sub = b.dataset.sub; render(); }
-    else if (a === 's') { const card = b.closest('[data-sid]'), sid = card.dataset.sid, h = find(sid) || {}; setCheck(sid, { s: h.s === b.dataset.s ? '' : b.dataset.s }); render(); }
+    else if (a === 'chip') { const sid = b.closest('[data-sid]').dataset.sid, c = (get(sid, b.dataset.sub) || {}).s || '', next = c === '' || c === 'done' ? 'no' : c === 'no' ? 'part' : ''; put(sid, b.dataset.sub, { s: next }); if (next && !checked()) put('@' + ui.year, '', { s: 'checked' }); render(); }
     else if (a === 'qr') { showQr = !showQr; render(); }
     else if (a === 'retry') { problem = ''; roster = null; render(); load(); }
     else if (a === 'forget') { if (armed.get(b)) { store.set(TOKEN, ''); roster = null; entries = []; sha = null; loaded = false; problem = ''; showQr = false; render(); } else { armed.set(b, true); b.textContent = 'Tap again to remove the key'; setTimeout(() => armed.delete(b), 3000); } }
@@ -2681,7 +2693,8 @@ if (typeof module !== 'undefined') module.exports = CS;
     const el = e.target;
     if (el.id === 'week') { ui.week = +el.value; render(); }
     else if (el.id === 'me') store.set(NAME, el.value.trim());
-    else if (el.dataset.c) setCheck(el.closest('[data-sid]').dataset.sid, { c: el.value.trim() });
+    else if (el.id === 'chk') put('@' + ui.year, '', { s: el.checked ? 'checked' : '' });
+    else if (el.dataset.c) put(el.closest('[data-sid]').dataset.sid, '', { c: el.value.trim() });
   });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && !dirty) load(); });
   setInterval(() => { if (!document.hidden && !dirty && store.get(TOKEN) && !problem) load(); }, 60000);
