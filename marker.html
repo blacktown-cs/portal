@@ -2660,12 +2660,12 @@ if (typeof module !== 'undefined') module.exports = CS;
     if (!ui.week) ui.week = cur().w || 1;
     store.set(LAST, JSON.stringify({ year: ui.year, week: ui.week }));
     const list = roster.students.filter(s => s.year === ui.year).sort((a, b) => a.name.localeCompare(b.name));
-    const set = (roster.hw || []).filter(x => x.y === ui.year && x.w === ui.week);
+    const set = (roster.hw || []).filter(x => x.y === ui.year && x.w === ui.week - 1);
     const bad = list.filter(s => flagged(s.id)).length;
     v.innerHTML = `<div class="years" role="group" aria-label="Year">${ys.map(y => `<button type="button" data-act="year" data-y="${y}" aria-pressed="${y === ui.year}">${esc(CS.yearLabel(y))}</button>`).join('')}</div>
       <div class="card"><div class="bar"><label class="fld">Week<select id="week">${Array.from({ length: 12 }, (_, i) => `<option value="${i + 1}"${i + 1 === ui.week ? ' selected' : ''}>Week ${i + 1}</option>`).join('')}</select></label>
           <label class="fld grow">Your name (shown to the office)<input id="me" value="${esc(store.get(NAME))}" autocomplete="name"></label></div>
-        <p class="note"><b>Term ${esc(cur().t)}, ${esc(cur().yr)} · ${esc(CS.yearLabel(ui.year))} · Week ${ui.week}.</b> ${set.length ? 'Homework set: ' + set.map(x => esc(x.subject) + ': ' + esc(x.hw)).join(' · ') : ''}</p>
+        <p class="note"><b>Term ${esc(cur().t)}, ${esc(cur().yr)} · ${esc(CS.yearLabel(ui.year))} · Week ${ui.week}.</b> ${set.length ? 'Being checked: the homework set in Week ' + (ui.week - 1) + '. ' + set.map(x => esc(x.subject) + ': ' + esc(x.hw)).join(' · ') : ''}</p>
         <p class="note">Mark only what was <b>not</b> done. Tap a subject once for <b>Not done</b>, again for <b>Partly</b>, again for <b>Done</b>, once more to clear. While the box below is ticked, students left blank show parents as completed.</p>
         <label class="chk"><input type="checkbox" id="chk"${checked() ? ' checked' : ''}> <b>Week ${ui.week} homework has been checked</b></label>
         <p class="note" id="count">${bad} of ${list.length} students have homework not completed. Parents see it after the office publishes.</p></div>` +
